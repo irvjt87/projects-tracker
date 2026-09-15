@@ -1,0 +1,8 @@
+Make your change in VS Code/Notepad.
+In Powershell:
+
+git add .
+
+git commit -m "Projects-Tracker Update"
+
+git push
