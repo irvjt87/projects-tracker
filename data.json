@@ -1,5 +1,5 @@
 {
-  "allotment": 200,
+  "allotment": 50,
   "activeProjectId": "1",
   "projects": [
     {
@@ -7,8 +7,22 @@
       "name": "Woodworking Birdhouse",
       "updatedAt": 1788642000000,
       "items": [
-        { "id": "101", "name": "Cedar Board 1x6", "qty": 2, "price": 8.50, "owner": "Rodney", "updatedAt": 1788642000000 },
-        { "id": "102", "name": "Wood Screws 1-5/8in", "qty": 1, "price": 5.25, "owner": "Benji", "updatedAt": 1788642000000 }
+        {
+          "id": "101",
+          "name": "Cedar Board 1x6",
+          "qty": 6,
+          "price": 3.28,
+          "owner": "Rodney",
+          "updatedAt": 1789473243139
+        },
+        {
+          "id": "1789473277946",
+          "name": "1# Hardened Trim Nails",
+          "qty": 1,
+          "price": 5.98,
+          "owner": "Rodney",
+          "updatedAt": 1789473277946
+        }
       ]
     }
   ]
