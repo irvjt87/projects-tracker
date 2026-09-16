@@ -199,50 +199,68 @@
     }
 
     async function pushToMaster(dataToPush) {
-      if (!config.token || !navigator.onLine) {
-        hasOfflineEdits = true;
-        localStorage.setItem('gh_has_offline_edits_proj', 'true');
-        document.getElementById('syncStatus').innerText = 'GitHub Sync: Saved Offline';
-        return;
+  if (!config.token || !navigator.onLine) {
+    hasOfflineEdits = true;
+    localStorage.setItem('gh_has_offline_edits_proj', 'true');
+    document.getElementById('syncStatus').innerText = 'GitHub Sync: Saved Offline';
+    return;
+  }
+
+  try {
+    // 1. Always fetch the latest SHA immediately before pushing to avoid 409 conflicts
+    const getRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`, {
+      headers: { 
+        'Authorization': `Bearer ${config.token}`,
+        'Accept': 'application/vnd.github.v3+json'
       }
+    });
 
-      try {
-        if (!currentSha) {
-          const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`, {
-            headers: { 'Authorization': `Bearer ${config.token}` }
-          });
-          if (res.ok) {
-            const fileData = await res.json();
-            currentSha = fileData.sha;
-          }
-        }
-
-        const jsonStr = JSON.stringify(dataToPush, null, 2);
-        const payload = {
-          message: 'Projects Tracker Auto-Update',
-          content: utf8_to_b64(jsonStr),
-          sha: currentSha
-        };
-
-        const pushRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`, {
-          method: 'PUT',
-          headers: { 'Authorization': `Bearer ${config.token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!pushRes.ok) throw new Error('Push rejected');
-
-        const pushData = await pushRes.json();
-        currentSha = pushData.content.sha;
-        hasOfflineEdits = false;
-        localStorage.setItem('gh_has_offline_edits_proj', 'false');
-        document.getElementById('syncStatus').innerText = 'GitHub Sync: Master Online';
-      } catch (e) {
-        hasOfflineEdits = true;
-        localStorage.setItem('gh_has_offline_edits_proj', 'true');
-        document.getElementById('syncStatus').innerText = 'GitHub Sync: Offline Edits Pending';
-      }
+    if (getRes.ok) {
+      const fileData = await getRes.json();
+      currentSha = fileData.sha;
+    } else if (getRes.status === 404) {
+      // File doesn't exist on GitHub yet; currentSha remains null to create it
+      currentSha = null;
+    } else {
+      throw new Error(`GitHub Auth/Read Error (${getRes.status}: ${getRes.statusText})`);
     }
+
+    // 2. Prepare payload
+    const jsonStr = JSON.stringify(dataToPush, null, 2);
+    const payload = {
+      message: 'Projects Tracker Auto-Update',
+      content: utf8_to_b64(jsonStr)
+    };
+    if (currentSha) payload.sha = currentSha;
+
+    // 3. PUT payload to GitHub API
+    const pushRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`, {
+      method: 'PUT',
+      headers: { 
+        'Authorization': `Bearer ${config.token}`, 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!pushRes.ok) {
+      const errData = await pushRes.json().catch(() => ({}));
+      throw new Error(`Push Rejected (${pushRes.status}: ${errData.message || pushRes.statusText})`);
+    }
+
+    const pushData = await pushRes.json();
+    currentSha = pushData.content.sha;
+    hasOfflineEdits = false;
+    localStorage.setItem('gh_has_offline_edits_proj', 'false');
+    document.getElementById('syncStatus').innerText = 'GitHub Sync: Master Online';
+    alert('Master updated successfully on GitHub!');
+  } catch (e) {
+    hasOfflineEdits = true;
+    localStorage.setItem('gh_has_offline_edits_proj', 'true');
+    document.getElementById('syncStatus').innerText = 'GitHub Sync: Push Failed';
+    alert(`Sync Error: ${e.message}`);
+  }
+}
 
     let appData = JSON.parse(localStorage.getItem('boys_projects_app_data')) || { allotment: 200, activeProjectId: '1', projects: [] };
 
